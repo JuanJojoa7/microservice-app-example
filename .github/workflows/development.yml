@@ -196,45 +196,11 @@ jobs:
         VM_IP="${{ steps.get-vm-info.outputs.vm_ip }}"
         echo "VM IP: $VM_IP"
         
-        # Configure SSH
-        echo "Configuring SSH..."
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
+        echo "Using Azure VM run-command (more reliable than SSH)..."
         
-        # Install sshpass
-        sudo apt-get update -qq
-        sudo apt-get install -y sshpass
-        
-        # SSH execution function with retry
-        execute_ssh() {
-          local max_attempts=3
-          local attempt=1
-          local delay=15
-          
-          while [ $attempt -le $max_attempts ]; do
-            echo "Attempt $attempt of $max_attempts..."
-            
-            if sshpass -p 'DevOps123!' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 azureuser@$VM_IP "$1"; then
-              echo "✓ Command executed successfully"
-              return 0
-            else
-              echo "✗ Attempt $attempt failed"
-              if [ $attempt -lt $max_attempts ]; then
-                echo "Waiting ${delay}s before next attempt..."
-                sleep $delay
-              fi
-              attempt=$((attempt + 1))
-            fi
-          done
-          
-          echo "ERROR: All SSH attempts failed"
-          return 1
-        }
-        
-        echo "Executing deployment..."
-        
-        # Remote deployment script
-        DEPLOY_SCRIPT='
+        # Create deployment script
+        cat > deployment_script.sh << 'EOF'
+        #!/bin/bash
         set -e
         echo "Starting deployment on VM..."
         
@@ -307,17 +273,42 @@ jobs:
         echo "• Dashboard: http://$PUBLIC_IP:8404/stats"
         
         echo "✓ Deployment completed successfully"
-        '
+        EOF
         
-        # Execute deployment script
-        if execute_ssh "$DEPLOY_SCRIPT"; then
-          echo "SUCCESS: Deployment completed!"
-          echo "Application URL: http://$VM_IP"
-          echo "Dashboard URL: http://$VM_IP:8404/stats"
-        else
-          echo "ERROR: Deployment failed after multiple attempts"
-          exit 1
-        fi
+        # Execute script on VM using Azure run-command
+        echo "Executing deployment script on VM..."
+        
+        # Try multiple times with different approaches
+        for attempt in 1 2 3; do
+          echo "Deployment attempt $attempt of 3..."
+          
+          if az vm run-command invoke \
+            --resource-group "RG-MICROSERVICES-DEMO-V2" \
+            --name "vm-microservices-demo" \
+            --command-id RunShellScript \
+            --scripts @deployment_script.sh \
+            --output json > deployment_result.json; then
+            
+            echo "✓ Deployment command executed successfully"
+            
+            # Show results
+            cat deployment_result.json | jq -r '.value[0].message' || cat deployment_result.json
+            
+            echo "SUCCESS: Deployment completed!"
+            echo "Application URL: http://$VM_IP"
+            echo "Dashboard URL: http://$VM_IP:8404/stats"
+            exit 0
+          else
+            echo "✗ Attempt $attempt failed"
+            if [ $attempt -lt 3 ]; then
+              echo "Waiting 30s before next attempt..."
+              sleep 30
+            fi
+          fi
+        done
+        
+        echo "ERROR: All deployment attempts failed"
+        exit 1
 
     - name: Verify Deployment
       if: steps.get-vm-info.outputs.vm_exists == 'true'
