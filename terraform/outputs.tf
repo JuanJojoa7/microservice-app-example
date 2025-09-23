@@ -15,7 +15,7 @@ output "vm_name" {
 output "deployment_instructions" {
   description = "Instrucciones de uso"
   sensitive   = true
-  value = <<-EOT
+  value       = <<-EOT
   
   🚀 DESPLIEGUE COMPLETADO
   

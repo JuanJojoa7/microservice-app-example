@@ -32,7 +32,7 @@ variable "location" {
 variable "vm_size" {
   description = "Tamaño de VM (más barato: Standard_B1s)"
   type        = string
-  default     = "Standard_B1s"  # 1 vCPU, 1 GB RAM - MÁS BARATO
+  default     = "Standard_B1s" # 1 vCPU, 1 GB RAM - MÁS BARATO
 }
 
 variable "admin_username" {
@@ -84,7 +84,7 @@ resource "azurerm_public_ip" "main" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   allocation_method   = "Static"
-  sku                 = "Basic"  # Más barato que Standard
+  sku                 = "Basic" # Más barato que Standard
 
   tags = azurerm_resource_group.main.tags
 }
@@ -164,9 +164,9 @@ resource "azurerm_managed_disk" "main" {
   name                 = "disk-microservices-vm-os"
   location             = azurerm_resource_group.main.location
   resource_group_name  = azurerm_resource_group.main.name
-  storage_account_type = "Standard_LRS"  # Más barato que Premium
+  storage_account_type = "Standard_LRS" # Más barato que Premium
   create_option        = "Empty"
-  disk_size_gb         = 30  # Mínimo necesario
+  disk_size_gb         = 30 # Mínimo necesario
 
   tags = azurerm_resource_group.main.tags
 }
@@ -190,7 +190,7 @@ resource "azurerm_linux_virtual_machine" "main" {
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"  # Más barato
+    storage_account_type = "Standard_LRS" # Más barato
   }
 
   # Ubuntu 22.04 LTS - Gratis
