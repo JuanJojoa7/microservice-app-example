@@ -222,6 +222,12 @@ echo "Iniciando configuración de VM para microservicios..."
 apt-get update -y
 apt-get upgrade -y
 
+# Configurar SSH para password authentication
+sed -i 's/#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+systemctl enable ssh
+systemctl restart ssh
+
 # Instalar dependencias básicas
 apt-get install -y \
     apt-transport-https \

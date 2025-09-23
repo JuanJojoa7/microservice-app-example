@@ -1,6 +1,7 @@
 # ============================================
 # PIPELINE DE INFRAESTRUCTURA - TERRAFORM
 # ============================================
+# Rebuild VM - SSH configuration fix
 
 name: 🏗️ Infrastructure Pipeline
 

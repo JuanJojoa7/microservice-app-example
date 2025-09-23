@@ -188,31 +188,6 @@ jobs:
         echo "dashboard_url=http://$VM_IP:8404/stats" >> $GITHUB_OUTPUT
         echo "vm_exists=true" >> $GITHUB_OUTPUT
 
-    - name: Configure SSH on VM
-      if: steps.get-vm-info.outputs.vm_exists == 'true'
-      run: |
-        echo "Configuring SSH on the VM..."
-        
-        # Configure SSH to allow password authentication
-        az vm run-command invoke \
-          --resource-group "RG-MICROSERVICES-DEMO-V2" \
-          --name "vm-microservices-demo" \
-          --command-id RunShellScript \
-          --scripts "
-            sudo systemctl enable ssh
-            sudo systemctl start ssh
-            sudo sed -i 's/#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-            sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-            sudo sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config
-            sudo systemctl restart ssh
-            echo 'SSH service configured and restarted'
-            systemctl status ssh
-          " \
-          --output table
-        
-        echo "Waiting 10 seconds for SSH to fully restart..."
-        sleep 10
-
     - name: Deploy to VM
       if: steps.get-vm-info.outputs.vm_exists == 'true'
       timeout-minutes: 15
