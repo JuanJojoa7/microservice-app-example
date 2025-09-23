@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # Public entrypoint and dashboard
+  haproxy:
+    image: haproxy:2.8-alpine
+    container_name: microservices_haproxy
+    ports:
+      - "80:80"
+      - "8404:8404"
+    volumes:
+      - ./haproxy-simple.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - frontend
+      - auth-api
+      - users-api
+      - todos-api
+    networks:
+      - microservices
+
+  # Frontend (prebuilt image from Docker Hub)
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/microservices-frontend:${IMAGE_TAG}
+    container_name: microservices_frontend
+    ports:
+      - "8081:8080"
+    depends_on:
+      - auth-api
+      - todos-api
+    networks:
+      - microservices
+    environment:
+      - NODE_ENV=production
+
+  # Authentication API - Go (prebuilt)
+  auth-api:
+    image: ${DOCKERHUB_USERNAME}/microservices-auth-api:${IMAGE_TAG}
+    container_name: microservices_auth
+    ports:
+      - "8000:8000"
+    depends_on:
+      - users-api
+    networks:
+      - microservices
+    environment:
+      - AUTH_API_PORT=8000
+      - USERS_API_ADDRESS=http://users-api:8083
+      - JWT_SECRET=myfancysecret
+
+  # Users API - Java (prebuilt)
+  users-api:
+    image: ${DOCKERHUB_USERNAME}/microservices-users-api:${IMAGE_TAG}
+    container_name: microservices_users
+    ports:
+      - "8083:8083"
+    networks:
+      - microservices
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - JWT_SECRET=myfancysecret
+
+  # TODOs API - Node.js (prebuilt)
+  todos-api:
+    image: ${DOCKERHUB_USERNAME}/microservices-todos-api:${IMAGE_TAG}
+    container_name: microservices_todos
+    ports:
+      - "8082:8082"
+    depends_on:
+      - redis
+    networks:
+      - microservices
+    environment:
+      - TODO_API_PORT=8082
+      - JWT_SECRET=myfancysecret
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: microservices_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - microservices
+
+  # Log Message Processor - Python (prebuilt)
+  log-processor:
+    image: ${DOCKERHUB_USERNAME}/microservices-log-processor:${IMAGE_TAG}
+    container_name: microservices_logs
+    depends_on:
+      - redis
+    networks:
+      - microservices
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_CHANNEL=log_channel
+
+networks:
+  microservices:
+    driver: bridge
+    name: microservices_network
+
+volumes:
+  redis_data:
+    name: microservices_redis_data

@@ -15,6 +15,9 @@ on:
     branches: [ feature/infrastructure-setup ]
   pull_request:
     branches: [ feature/infrastructure-setup ]
+  workflow_run:
+    workflows: ["🏗️ Infrastructure Pipeline"]
+    types: [completed]
 
 env:
   REGISTRY: ghcr.io
@@ -27,7 +30,11 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-    if: always()
+    if: >
+      always() && (
+        github.event_name != 'workflow_run' ||
+        github.event.workflow_run.conclusion == 'success'
+      )
 
     steps:
     - name: Checkout Code
@@ -114,18 +121,18 @@ jobs:
         
         if command -v docker-compose >/dev/null 2>&1; then
           echo "✓ Using docker-compose (v1)"
-          docker-compose -f docker-compose-simple.yml build
+          docker-compose -f docker-compose-simple.yml config -q
         elif docker compose version >/dev/null 2>&1; then
           echo "✓ Using docker compose (v2)"
-          docker compose -f docker-compose-simple.yml build
+          docker compose -f docker-compose-simple.yml config -q
         else
           echo "Installing docker-compose..."
           sudo curl -L "https://github.com/docker/compose/releases/download/v2.21.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
-          docker-compose -f docker-compose-simple.yml build
+          docker-compose -f docker-compose-simple.yml config -q
         fi
         
-        echo "✓ All images built successfully"
+        echo "✓ docker-compose syntax is valid"
 
     # Pattern Scripts Test
     - name: Test Pattern Scripts
@@ -145,11 +152,71 @@ jobs:
     name: Deploy to Azure VM
     runs-on: ubuntu-latest
     needs: test
-    if: always() && needs.test.result != 'failure'
+    if: >
+      always() && needs.test.result != 'failure' && (
+        github.event_name != 'workflow_run' ||
+        github.event.workflow_run.conclusion == 'success'
+      )
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push images to Docker Hub
+      env:
+        IMAGE_TAG: ${{ github.sha }}
+        DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      run: |
+        set -e
+
+        echo "Building and pushing images with tag: $IMAGE_TAG"
+
+        # Frontend
+        docker buildx build \
+          --platform linux/amd64 \
+          -t ${DOCKERHUB_USERNAME}/microservices-frontend:${IMAGE_TAG} \
+          -f frontend/Dockerfile frontend \
+          --push
+
+        # Auth API (Go)
+        docker buildx build \
+          --platform linux/amd64 \
+          -t ${DOCKERHUB_USERNAME}/microservices-auth-api:${IMAGE_TAG} \
+          -f auth-api/Dockerfile auth-api \
+          --push
+
+        # Users API (Java)
+        docker buildx build \
+          --platform linux/amd64 \
+          -t ${DOCKERHUB_USERNAME}/microservices-users-api:${IMAGE_TAG} \
+          -f users-api/Dockerfile users-api \
+          --push
+
+        # TODOs API (Node)
+        docker buildx build \
+          --platform linux/amd64 \
+          -t ${DOCKERHUB_USERNAME}/microservices-todos-api:${IMAGE_TAG} \
+          -f todos-api/Dockerfile todos-api \
+          --push
+
+        # Log Processor (Python)
+        docker buildx build \
+          --platform linux/amd64 \
+          -t ${DOCKERHUB_USERNAME}/microservices-log-processor:${IMAGE_TAG} \
+          -f log-message-processor/Dockerfile log-message-processor \
+          --push
 
     - name: Azure Login
       uses: azure/login@v1
@@ -188,7 +255,7 @@ jobs:
         echo "dashboard_url=http://$VM_IP:8404/stats" >> $GITHUB_OUTPUT
         echo "vm_exists=true" >> $GITHUB_OUTPUT
 
-    - name: Deploy to VM
+    - name: Deploy to VM (pull images from Docker Hub)
       if: steps.get-vm-info.outputs.vm_exists == 'true'
       timeout-minutes: 30  # Timeout optimizado para Standard_B2s
       run: |
@@ -267,226 +334,47 @@ jobs:
         sudo docker-compose -f docker-compose-simple.yml down --remove-orphans || true
         
         # ESTRATEGIA OPTIMIZADA: Semi-parallel builds (aprovechar 2 vCPUs)
-        echo "=== BUILDING SERVICES (OPTIMIZED FOR STANDARD_B2S) ==="
-        
-        # Fase 1: Servicios ligeros en paralelo
-        echo "Phase 1: Building lightweight services in parallel..."
-        sudo docker-compose -f docker-compose-simple.yml up -d redis haproxy &
-        PHASE1_PID=$!
-        
-        # Fase 2: Node.js API (mediano)
-        echo "Phase 2: Building TODOs API..."
-        sudo docker-compose -f docker-compose-simple.yml up -d todos-api
-        
-        # Esperar fase 1
-        wait $PHASE1_PID
-        echo "✓ Lightweight services ready"
-        
-        # Fase 3: Java API (pesado pero manejable con 4GB RAM)
-        echo "Phase 3: Building Users API (Java)..."
-        sudo docker-compose -f docker-compose-simple.yml up -d users-api
-        
-        # Monitorear Java build
-        echo "Waiting for Java service (faster with 2 vCPUs)..."
-        for i in {1..10}; do
-          if sudo docker ps | grep "users-api" | grep -q "Up"; then
-            echo "✓ Users API is running!"
-            break
-          else
-            echo "⏳ Java build in progress... (attempt $i/10)"
-            sleep 20
-          fi
-        done
-        
-        # Fase 4: Frontend (pesado pero manejable)
-        echo "Phase 4: Building Frontend..."
-        sudo docker-compose -f docker-compose-simple.yml up -d frontend
-        
-        # Monitorear Frontend build
-        echo "Waiting for Frontend (node-sass faster with more RAM)..."
-        for i in {1..8}; do
-          if sudo docker ps | grep "frontend" | grep -q "Up"; then
-            echo "✓ Frontend is running!"
-            break
-          else
-            echo "⏳ Frontend build in progress... (attempt $i/8)"
-            sleep 25
-          fi
-        done
-        
-        # Health check final
-        echo "=== FINAL HEALTH CHECK ==="
+        echo "=== PULLING AND STARTING PREBUILT IMAGES FROM DOCKER HUB ==="
+
+        # Export env vars for compose substitutions
+        export DOCKERHUB_USERNAME='${{ secrets.DOCKERHUB_USERNAME }}'
+        export IMAGE_TAG='${{ github.sha }}'
+
+        # Ensure compose file exists
+        if [ ! -f "docker-compose.deploy.yml" ]; then
+          echo "ERROR: docker-compose.deploy.yml not found!"
+          exit 1
+        fi
+
+        # Pull and start services using prebuilt images
+        sudo docker compose -f docker-compose.deploy.yml pull || sudo docker-compose -f docker-compose.deploy.yml pull
+        sudo docker compose -f docker-compose.deploy.yml up -d || sudo docker-compose -f docker-compose.deploy.yml up -d
+
+        echo "Waiting for services to become healthy..."
         sleep 30
-        
-        # Check all services
-        echo "Container status:"
+
+        echo "=== FINAL HEALTH CHECK ==="
         sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-        
-        # Test application endpoints
-        echo "Testing application health..."
-        
-        # Test main app with retries
-        for i in {1..3}; do
-          if curl -f -s http://localhost > /dev/null 2>&1; then
-            echo "✓ Main application is healthy"
-            break
-          else
-            echo "⚠ Attempt $i: Main app not responding, retrying..."
-            sleep 15
-          fi
-        done
-        
-        # Test HAProxy dashboard
+
+        if curl -f -s http://localhost > /dev/null 2>&1; then
+          echo "✓ Main application is healthy"
+        else
+          echo "⚠ Main application not responding yet"
+        fi
+
         if curl -f -s http://localhost:8404/stats > /dev/null 2>&1; then
           echo "✓ HAProxy dashboard is healthy"
         else
           echo "⚠ HAProxy dashboard not responding"
         fi
-        
-        # Get public IP
+
         PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
-        
-        echo ""
-        echo "=== ✅ DEPLOYMENT COMPLETED SUCCESSFULLY ==="
-        echo "🖥️ VM: Standard_B2s (2 vCPUs, 4GB RAM)"
+        echo "\n=== ✅ DEPLOYMENT COMPLETED USING DOCKER HUB IMAGES ==="
         echo "🌐 Application URL: http://$PUBLIC_IP"
         echo "📊 HAProxy Dashboard: http://$PUBLIC_IP:8404/stats"
-        echo "👤 Dashboard Credentials: admin/admin"
-        echo ""
-        echo "🎯 Design Patterns Implemented:"
-        echo "  ✓ Circuit Breaker Pattern (HAProxy health checks)"
-        echo "  ✓ Cache Aside Pattern (Redis caching)"
-        echo "  ✓ Load Balancing (HAProxy round-robin)"
-        echo "  ✓ Service Discovery (Docker Compose networking)"
-        echo ""
-        echo "📊 Services Status:"
-        sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-        echo ""
-        echo "💰 Infrastructure Cost: ~$15-20/mes"
-        echo "⚡ Build Performance: Optimized for 2 vCPUs + 4GB RAM"
-        
+
         EOF
-        
-        echo ""
-        echo "SUCCESS: Deployment completed successfully!"
-        echo "🌐 Application: http://$VM_IP"
-        echo "📊 Dashboard: http://$VM_IP:8404/stats"
-        set -e
-        echo "=== Starting deployment on VM ==="
-        
-        # Navigate to home directory
-        cd /home/azureuser
-        echo "Current directory: $(pwd)"
-        
-        # Install git if not present
-        if ! command -v git &> /dev/null; then
-          echo "Installing git..."
-          sudo apt-get update
-          sudo apt-get install -y git
-        fi
-        
-        # Clone or update repository
-        if [ -d "microservice-app-example" ]; then
-          echo "Repository exists, updating..."
-          cd microservice-app-example
-          git fetch origin
-          git reset --hard origin/feature/infrastructure-setup
-        else
-          echo "Cloning repository..."
-          git clone -b feature/infrastructure-setup https://github.com/JuanJojoa7/microservice-app-example.git
-          cd microservice-app-example
-        fi
-        
-        # Verify we have the compose file
-        if [ ! -f "docker-compose-simple.yml" ]; then
-          echo "ERROR: docker-compose-simple.yml not found!"
-          ls -la
-          exit 1
-        fi
-        
-        echo "Found docker-compose-simple.yml ✓"
-        
-        # Ensure Docker is running
-        echo "Checking Docker installation..."
-        
-        # Try to start Docker first
-        if sudo systemctl start docker 2>/dev/null && sudo systemctl enable docker 2>/dev/null; then
-          echo "Docker service started successfully ✓"
-        else
-          echo "Docker service not available, checking installation..."
-          
-          # Check if docker command exists
-          if command -v docker &> /dev/null; then
-            echo "Docker command exists, fixing service..."
-            sudo systemctl daemon-reload
-            sudo systemctl enable docker
-            sudo systemctl start docker
-          else
-            echo "Installing Docker from scratch..."
-            curl -fsSL https://get.docker.com -o get-docker.sh
-            sudo sh get-docker.sh
-            sudo systemctl start docker
-            sudo systemctl enable docker
-          fi
-        fi
-        
-        # Ensure user is in docker group
-        sudo usermod -aG docker azureuser
-        
-        # Verify docker-compose
-        if ! command -v docker-compose &> /dev/null; then
-          echo "Installing docker-compose..."
-          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-        fi
-        
-        echo "Docker setup completed ✓"
-        
-        # Stop any existing containers
-        echo "Stopping existing containers..."
-        sudo docker-compose -f docker-compose-simple.yml down --remove-orphans || echo "No existing containers"
-        
-        # Pull latest images
-        echo "Pulling Docker images..."
-        sudo docker-compose -f docker-compose-simple.yml pull || echo "Pull failed, will build instead"
-        
-        # Start the application
-        echo "Starting microservices application..."
-        sudo docker-compose -f docker-compose-simple.yml up -d --build
-        
-        # Wait for services to initialize
-        echo "Waiting 60 seconds for services to initialize..."
-        sleep 60
-        
-        # Check container status
-        echo "=== Container Status ==="
-        sudo docker ps
-        
-        # Test application
-        echo "=== Testing Application ==="
-        if curl -f -s http://localhost > /dev/null; then
-          echo "✓ Application is responding locally"
-        else
-          echo "⚠ Application not yet responding locally"
-        fi
-        
-        # Show access URLs
-        PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "$VM_IP")
-        echo ""
-        echo "=== DEPLOYMENT COMPLETED ==="
-        echo "🌐 Application URL: http://$PUBLIC_IP"
-        echo "📊 HAProxy Dashboard: http://$PUBLIC_IP:8404/stats"
-        echo "👤 Dashboard Login: admin/admin"
-        echo ""
-        echo "🎯 Patterns Implemented:"
-        echo "  ✓ Circuit Breaker (HAProxy)"
-        echo "  ✓ Cache Aside (Redis)"
-        echo "  ✓ Load Balancing"
-        echo "  ✓ Service Discovery"
-        echo ""
-        
-        EOF
-        
+
         echo ""
         echo "SUCCESS: Deployment completed successfully!"
         echo "🌐 Application: http://$VM_IP"

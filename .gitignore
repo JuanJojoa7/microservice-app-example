@@ -1,0 +1,80 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors / IDE
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+
+# Env files and secrets (root & apps)
+.env
+.env.*
+*.local
+
+# Logs
+*.log
+logs/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# Docker
+docker-compose.override.yml
+
+# Terraform (keep .terraform.lock.hcl tracked)
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/crash.log
+terraform/override.tf
+terraform/override.tf.json
+terraform/*.tfvars
+
+# Java / Maven (users-api)
+users-api/target/
+users-api/.classpath
+users-api/.project
+users-api/.settings/
+users-api/.idea/
+users-api/*.iml
+
+# Node.js (frontend)
+frontend/node_modules/
+frontend/dist/
+frontend/.cache/
+frontend/npm-debug.log*
+frontend/yarn-error.log*
+frontend/.env
+
+# Node.js (todos-api)
+todos-api/node_modules/
+todos-api/dist/
+todos-api/npm-debug.log*
+todos-api/yarn-error.log*
+todos-api/.env
+
+# Python (log-message-processor)
+log-message-processor/__pycache__/
+log-message-processor/.pytest_cache/
+log-message-processor/.mypy_cache/
+log-message-processor/.venv/
+log-message-processor/venv/
+log-message-processor/*.pyc
+log-message-processor/.env
+
+# Go (auth-api)
+auth-api/auth-api
+auth-api/bin/
+auth-api/build/
+auth-api/*.exe
+auth-api/*.out
+auth-api/vendor/
+
+# Misc build outputs (be specific to avoid ignoring source folders)
+**/coverage/
