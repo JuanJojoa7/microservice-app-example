@@ -1,9 +1,10 @@
 # ============================================
 # VARIABLES DE TERRAFORM - PERSONALIZACIÓN
 # ============================================
+# Trigger pipeline - clean rebuild
 
 # Configuración del grupo de recursos
-resource_group_name = "rg-microservices-demo"
+resource_group_name = "rg-microservices-demo-v2"
 location            = "eastus2" # Región permitida para Azure for Students
 
 # Configuración de la VM (MÁS BARATA)
