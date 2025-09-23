@@ -190,9 +190,9 @@ jobs:
 
     - name: Deploy to VM
       if: steps.get-vm-info.outputs.vm_exists == 'true'
-      timeout-minutes: 20  # Aumentamos timeout para compilación inicial
+      timeout-minutes: 25  # Timeout más generoso
       run: |
-        echo "Deploying application to VM..."
+        echo "Deploying application to VM via SSH..."
         
         VM_IP="${{ steps.get-vm-info.outputs.vm_ip }}"
         echo "VM IP: $VM_IP"
@@ -210,6 +210,43 @@ jobs:
         
         # Execute deployment commands directly on VM
         sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 $SSH_USER@$VM_IP << 'EOF'
+        set -e
+        echo "=== Starting deployment on VM ==="
+        
+        # Navigate to home directory
+        cd /home/azureuser
+        echo "Current directory: $(pwd)"
+        
+        # Install git if not present
+        if ! command -v git &> /dev/null; then
+          echo "Installing git..."
+          sudo apt-get update
+          sudo apt-get install -y git
+        fi
+        
+        # Clone or update repository
+        if [ -d "microservice-app-example" ]; then
+          echo "Repository exists, updating..."
+          cd microservice-app-example
+          git fetch origin
+          git reset --hard origin/feature/infrastructure-setup
+        else
+          echo "Cloning repository..."
+          git clone -b feature/infrastructure-setup https://github.com/JuanJojoa7/microservice-app-example.git
+          cd microservice-app-example
+        fi
+        
+        # Verify we have the compose file
+        if [ ! -f "docker-compose-simple.yml" ]; then
+          echo "ERROR: docker-compose-simple.yml not found!"
+          ls -la
+          exit 1
+        fi
+        
+        echo "Found docker-compose-simple.yml ✓"
+        
+        # Ensure Docker is running
+        echo "Checking Docker installation..."
         set -e
         echo "=== Starting deployment on VM ==="
         
