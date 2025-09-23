@@ -175,9 +175,8 @@ jobs:
           echo "ERROR: Missing secret DOCKERHUB_USERNAME (your Docker Hub username)." >&2
           MISSING=1
         fi
-        if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ] && [ -z "${{ secrets.DOCKERHUB }}" ]; then
+        if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
           echo "ERROR: Missing secret DOCKERHUB_TOKEN (Docker Hub access token)." >&2
-          echo "Hint: If you only created a single secret named DOCKERHUB, please also create DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (you can reuse DOCKERHUB as the token)." >&2
           MISSING=1
         fi
         if [ "$MISSING" -ne 0 ]; then
@@ -188,7 +187,7 @@ jobs:
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKERHUB }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build and push images to Docker Hub
       env:
@@ -352,9 +351,18 @@ jobs:
         # ESTRATEGIA OPTIMIZADA: Semi-parallel builds (aprovechar 2 vCPUs)
         echo "=== PULLING AND STARTING PREBUILT IMAGES FROM DOCKER HUB ==="
 
-        # Export env vars for compose substitutions
-        export DOCKERHUB_USERNAME='${{ secrets.DOCKERHUB_USERNAME }}'
-        export IMAGE_TAG='${{ github.sha }}'
+        # Escribir variables en .env para que docker compose (bajo sudo) las lea
+        DOCKERHUB_USER='${{ secrets.DOCKERHUB_USERNAME }}'
+        IMAGE_TAG_VALUE='${{ github.sha }}'
+        echo "DOCKERHUB_USERNAME=$DOCKERHUB_USER" > .env
+        echo "IMAGE_TAG=$IMAGE_TAG_VALUE" >> .env
+        echo ".env creado con variables para compose"
+
+        # Login opcional a Docker Hub (útil si los repos están privados)
+        DOCKERHUB_PASS='${{ secrets.DOCKERHUB_TOKEN }}'
+        if [ -n "$DOCKERHUB_USER" ] && [ -n "$DOCKERHUB_PASS" ]; then
+          echo "$DOCKERHUB_PASS" | sudo docker login -u "$DOCKERHUB_USER" --password-stdin || true
+        fi
 
         # Ensure compose file exists
         if [ ! -f "docker-compose.deploy.yml" ]; then
@@ -362,7 +370,7 @@ jobs:
           exit 1
         fi
 
-        # Pull and start services using prebuilt images
+        # Pull and start services using prebuilt images (docker compose leerá variables desde .env)
         sudo docker compose -f docker-compose.deploy.yml pull || sudo docker-compose -f docker-compose.deploy.yml pull
         sudo docker compose -f docker-compose.deploy.yml up -d || sudo docker-compose -f docker-compose.deploy.yml up -d
 
