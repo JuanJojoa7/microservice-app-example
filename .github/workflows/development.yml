@@ -155,7 +155,21 @@ jobs:
     - name: 🔗 Integration Test - Build Images
       run: |
         echo "🏗️ Building all Docker images..."
-        docker-compose -f docker-compose-simple.yml build
+        
+        # Verificar versión de Docker Compose
+        if command -v docker-compose >/dev/null 2>&1; then
+          echo "✅ Using docker-compose (v1)"
+          docker-compose -f docker-compose-simple.yml build
+        elif docker compose version >/dev/null 2>&1; then
+          echo "✅ Using docker compose (v2)"
+          docker compose -f docker-compose-simple.yml build
+        else
+          echo "📦 Installing docker-compose..."
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.21.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose -f docker-compose-simple.yml build
+        fi
+        
         echo "✅ All images built successfully"
 
     # Pattern Scripts Test
@@ -197,8 +211,16 @@ jobs:
       run: |
         echo "🏗️ Building and pushing microservice images..."
         
-        # Build all images with cache
-        docker-compose -f docker-compose-simple.yml build
+        # Usar Docker Compose v2 (viene con Docker por defecto en GitHub Actions)
+        if docker compose version >/dev/null 2>&1; then
+          echo "✅ Using docker compose (v2)"
+          docker compose -f docker-compose-simple.yml build
+        else
+          echo "📦 Installing docker-compose v1..."
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.21.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose -f docker-compose-simple.yml build
+        fi
         
         # Tag images for registry (optional - para cache entre builds)
         # docker tag microservice-app-example_frontend:latest ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
