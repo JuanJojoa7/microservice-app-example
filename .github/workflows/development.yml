@@ -168,11 +168,27 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    - name: Validate Docker Hub secrets
+      run: |
+        MISSING=0
+        if [ -z "${{ secrets.DOCKERHUB_USERNAME }}" ]; then
+          echo "ERROR: Missing secret DOCKERHUB_USERNAME (your Docker Hub username)." >&2
+          MISSING=1
+        fi
+        if [ -z "${{ secrets.DOCKERHUB_TOKEN }}" ] && [ -z "${{ secrets.DOCKERHUB }}" ]; then
+          echo "ERROR: Missing secret DOCKERHUB_TOKEN (Docker Hub access token)." >&2
+          echo "Hint: If you only created a single secret named DOCKERHUB, please also create DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (you can reuse DOCKERHUB as the token)." >&2
+          MISSING=1
+        fi
+        if [ "$MISSING" -ne 0 ]; then
+          exit 1
+        fi
+
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        password: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKERHUB }}
 
     - name: Build and push images to Docker Hub
       env:
