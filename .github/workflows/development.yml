@@ -316,38 +316,57 @@ jobs:
     - name: 🚀 Deploy to VM
       if: steps.get-vm-info.outputs.vm_exists == 'true'
       run: |
-        echo "🚀 Desplegando aplicación a VM Azure..."
+        echo "🚀 Desplegando aplicación en la VM..."
         
-        VM_IP="${{ steps.get-vm-info.outputs.vm_ip }}"
+        # Generar par de claves SSH temporal para el deployment
+        echo "🔑 Configurando acceso SSH..."
+        ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
         
-        # Preparar clave SSH (en un entorno real, usar secrets)
-        mkdir -p ~/.ssh
-        ssh-keyscan -H $VM_IP >> ~/.ssh/known_hosts
+        # Usar Azure CLI para ejecutar comandos en la VM (más seguro)
+        echo "📦 Ejecutando deployment remoto..."
         
-        # Subir archivos actualizados a la VM
-        echo "📤 Subiendo archivos actualizados..."
-        
-        # Usar GitHub para actualizar (más simple que SSH/SCP)
-        ssh -o StrictHostKeyChecking=no azureuser@$VM_IP << 'EOF'
-          cd /home/azureuser/microservices-app
-          
-          echo "📦 Actualizando código desde GitHub..."
-          git fetch origin
-          git reset --hard origin/feature/infrastructure-setup
-          
-          echo "🔄 Reiniciando aplicación..."
-          docker-compose -f docker-compose-simple.yml down
-          docker-compose -f docker-compose-simple.yml up -d --build
-          
-          echo "⏳ Esperando inicialización..."
-          sleep 30
-          
-          echo "✅ Verificando estado de servicios..."
-          docker ps
-          
-          echo "🌐 Aplicación desplegada en: http://$(curl -s ifconfig.me)"
-          echo "📊 Dashboard disponible en: http://$(curl -s ifconfig.me):8404/stats"
-        EOF
+        az vm run-command invoke \
+          --resource-group "RG-MICROSERVICES-DEMO-V2" \
+          --name "vm-microservices-demo" \
+          --command-id RunShellScript \
+          --scripts '
+            #!/bin/bash
+            echo "🏠 Navegando al directorio home..."
+            cd /home/azureuser
+            
+            echo "� Clonando/actualizando repositorio..."
+            if [ -d "microservice-app-example" ]; then
+              cd microservice-app-example
+              git pull origin feature/infrastructure-setup
+            else
+              git clone -b feature/infrastructure-setup https://github.com/JuanJojoa7/microservice-app-example.git
+              cd microservice-app-example
+            fi
+            
+            echo "� Verificando Docker..."
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            
+            echo "🔄 Parando servicios existentes..."
+            sudo docker-compose -f docker-compose-simple.yml down --remove-orphans || true
+            
+            echo "� Descargando imágenes..."
+            sudo docker-compose -f docker-compose-simple.yml pull || true
+            
+            echo "🚀 Iniciando aplicación..."
+            sudo docker-compose -f docker-compose-simple.yml up -d --build
+            
+            echo "⏳ Esperando inicialización (30s)..."
+            sleep 30
+            
+            echo "📊 Estado de contenedores:"
+            sudo docker ps
+            
+            echo "🌐 Aplicación disponible en: http://$(curl -s ifconfig.me)"
+            echo "� Dashboard HAProxy: http://$(curl -s ifconfig.me):8404/stats"
+            
+            echo "✅ Deployment completado exitosamente"
+          '
 
     - name: ✅ Verify Deployment
       if: steps.get-vm-info.outputs.vm_exists == 'true'
