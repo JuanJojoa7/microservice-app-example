@@ -30,9 +30,9 @@ variable "location" {
 }
 
 variable "vm_size" {
-  description = "Tamaño de VM (más barato: Standard_B1s)"
+  description = "Tamaño de VM (Standard_B2s para builds estables)"
   type        = string
-  default     = "Standard_B1s" # 1 vCPU, 1 GB RAM - MÁS BARATO
+  default     = "Standard_B2s" # 2 vCPUs, 4 GB RAM - Estable para Docker builds
 }
 
 variable "admin_username" {

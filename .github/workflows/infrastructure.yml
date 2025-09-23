@@ -17,6 +17,7 @@ on:
         - plan
         - deploy
         - destroy
+        - clean-deploy
       
   push:
     branches:
@@ -247,3 +248,106 @@ jobs:
         
     - name: ✅ Cleanup Complete
       run: echo "🗑️ Infraestructura eliminada exitosamente"
+
+  # ============================================
+  # CLEAN DEPLOY: Elimina RG y recrea todo
+  # ============================================
+  clean-deploy:
+    name: 🧹 Clean Deploy (Delete RG + Recreate)
+    runs-on: ubuntu-latest
+    if: github.event.inputs.action == 'clean-deploy'
+    
+    environment: 
+      name: azure-production
+      url: ${{ steps.terraform-output.outputs.application_url }}
+
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v4
+
+    - name: 🔧 Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: 🔐 Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: 🗑️ Force Delete Resource Group
+      run: |
+        echo "🧹 Eliminando Resource Group completamente..."
+        
+        # Obtener el nombre del RG desde variables Terraform
+        RG_NAME="RG-MICROSERVICES-DEMO-V3"
+        
+        # Verificar si existe el RG
+        if az group show --name "$RG_NAME" >/dev/null 2>&1; then
+          echo "📍 Resource Group '$RG_NAME' encontrado, eliminando..."
+          
+          # Forzar eliminación de todo el RG
+          az group delete --name "$RG_NAME" --yes --no-wait
+          
+          echo "⏳ Esperando eliminación completa..."
+          # Esperar hasta que el RG sea eliminado completamente
+          while az group show --name "$RG_NAME" >/dev/null 2>&1; do
+            echo "⏳ Esperando eliminación de $RG_NAME..."
+            sleep 30
+          done
+          
+          echo "✅ Resource Group eliminado completamente"
+        else
+          echo "ℹ️ Resource Group '$RG_NAME' no existe, continuando..."
+        fi
+
+    - name: 📂 Terraform Init (Fresh Start)
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        echo "🆕 Inicializando Terraform desde cero..."
+        
+        # Limpiar estado local si existe
+        rm -f terraform.tfstate*
+        rm -f .terraform.lock.hcl
+        rm -rf .terraform/
+        
+        # Inicializar Terraform
+        terraform init
+
+    - name: 🚀 Terraform Plan & Apply (Complete Recreation)
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        echo "📋 Creando plan de infraestructura..."
+        terraform plan -out=tfplan
+        
+        echo "🚀 Desplegando infraestructura desde cero..."
+        terraform apply -auto-approve tfplan
+        
+    - name: 📊 Get Fresh Terraform Outputs
+      id: terraform-output
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+      run: |
+        echo "📊 Obteniendo outputs de la nueva infraestructura..."
+        
+        echo "application_url=$(terraform output -raw application_url)" >> $GITHUB_OUTPUT
+        echo "dashboard_url=$(terraform output -raw dashboard_url)" >> $GITHUB_OUTPUT
+        echo "ssh_command=$(terraform output -raw ssh_connection_command)" >> $GITHUB_OUTPUT
+        echo "public_ip=$(terraform output -raw public_ip_address)" >> $GITHUB_OUTPUT
+        
+        echo ""
+        echo "🎉 NUEVA INFRAESTRUCTURA DESPLEGADA:"
+        echo "🌐 App: $(terraform output -raw application_url)"
+        echo "📊 Dashboard: $(terraform output -raw dashboard_url)" 
+        echo "🔧 SSH: $(terraform output -raw ssh_connection_command)"
+        echo "💰 Costo estimado: ~$15-20/mes (Standard_B2s)"
+
+    - name: ✅ Clean Deploy Complete
+      run: |
+        echo "🎯 CLEAN DEPLOY COMPLETADO EXITOSAMENTE"
+        echo ""
+        echo "✅ Resource Group eliminado y recreado"
+        echo "✅ VM Standard_B2s desplegada (2 vCPUs, 4GB RAM)"
+        echo "✅ SSH configurado y listo"
+        echo "✅ Infraestructura estable para Docker builds"
+        echo ""
+        echo "🚀 Ahora puedes ejecutar el Development Pipeline"
