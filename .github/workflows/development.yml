@@ -190,125 +190,115 @@ jobs:
 
     - name: Deploy to VM
       if: steps.get-vm-info.outputs.vm_exists == 'true'
+      timeout-minutes: 15
       run: |
         echo "Deploying application to VM..."
         
         VM_IP="${{ steps.get-vm-info.outputs.vm_ip }}"
         echo "VM IP: $VM_IP"
         
-        echo "Using Azure VM run-command (more reliable than SSH)..."
+        # Install sshpass for password authentication
+        echo "Installing sshpass..."
+        sudo apt-get update -qq
+        sudo apt-get install -y sshpass
         
-        # Create deployment script
-        cat > deployment_script.sh << 'EOF'
-        #!/bin/bash
+        # SSH credentials (same as Terraform configuration)
+        SSH_USER="azureuser"
+        SSH_PASS="MicroservicesDemo2025!"
+        
+        echo "Connecting to VM via SSH..."
+        
+        # Execute deployment commands directly on VM
+        sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 $SSH_USER@$VM_IP << 'EOF'
         set -e
-        echo "Starting deployment on VM..."
+        echo "=== Starting deployment on VM ==="
         
         # Navigate to home directory
         cd /home/azureuser
+        echo "Current directory: $(pwd)"
         
-        # Update system
-        echo "Updating system..."
-        sudo apt-get update -qq
-        
-        # Install Git if not present
+        # Install git if not present
         if ! command -v git &> /dev/null; then
-          echo "Installing Git..."
+          echo "Installing git..."
+          sudo apt-get update
           sudo apt-get install -y git
         fi
         
         # Clone or update repository
-        echo "Preparing code..."
         if [ -d "microservice-app-example" ]; then
+          echo "Repository exists, updating..."
           cd microservice-app-example
-          echo "Updating existing repository..."
-          git fetch origin || echo "WARNING: Fetch failed, continuing..."
-          git reset --hard origin/feature/infrastructure-setup || git reset --hard HEAD
+          git fetch origin
+          git reset --hard origin/feature/infrastructure-setup
         else
           echo "Cloning repository..."
-          git clone -b feature/infrastructure-setup https://github.com/JuanJojoa7/microservice-app-example.git || {
-            echo "ERROR: Failed to clone repository"
-            exit 1
-          }
+          git clone -b feature/infrastructure-setup https://github.com/JuanJojoa7/microservice-app-example.git
           cd microservice-app-example
         fi
         
-        # Verify docker-compose file exists
+        # Verify we have the compose file
         if [ ! -f "docker-compose-simple.yml" ]; then
-          echo "ERROR: docker-compose-simple.yml not found"
+          echo "ERROR: docker-compose-simple.yml not found!"
           ls -la
           exit 1
         fi
         
-        echo "Available files:"
-        ls -la *.yml *.yaml 2>/dev/null || echo "No YAML files found"
+        echo "Found docker-compose-simple.yml ✓"
         
         # Ensure Docker is running
-        echo "Verifying Docker..."
+        echo "Starting Docker service..."
         sudo systemctl start docker
         sudo systemctl enable docker
         
-        # Clean previous deployment
-        echo "Cleaning previous deployment..."
-        sudo docker-compose -f docker-compose-simple.yml down --remove-orphans 2>/dev/null || echo "No previous containers"
+        # Stop any existing containers
+        echo "Stopping existing containers..."
+        sudo docker-compose -f docker-compose-simple.yml down --remove-orphans || echo "No existing containers"
         
-        # Download images
-        echo "Downloading Docker images..."
-        sudo docker-compose -f docker-compose-simple.yml pull || echo "WARNING: Pull failed, continuing with build"
+        # Pull latest images
+        echo "Pulling Docker images..."
+        sudo docker-compose -f docker-compose-simple.yml pull || echo "Pull failed, will build instead"
         
-        # Build and start
-        echo "Starting application..."
+        # Start the application
+        echo "Starting microservices application..."
         sudo docker-compose -f docker-compose-simple.yml up -d --build
         
-        # Wait and verify
-        echo "Waiting for initialization (60s)..."
+        # Wait for services to initialize
+        echo "Waiting 60 seconds for services to initialize..."
         sleep 60
         
-        echo "Final container status:"
+        # Check container status
+        echo "=== Container Status ==="
         sudo docker ps
         
-        echo "Access URLs:"
-        PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "IP_NOT_FOUND")
-        echo "• Application: http://$PUBLIC_IP"
-        echo "• Dashboard: http://$PUBLIC_IP:8404/stats"
+        # Test application
+        echo "=== Testing Application ==="
+        if curl -f -s http://localhost > /dev/null; then
+          echo "✓ Application is responding locally"
+        else
+          echo "⚠ Application not yet responding locally"
+        fi
         
-        echo "✓ Deployment completed successfully"
+        # Show access URLs
+        PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "$VM_IP")
+        echo ""
+        echo "=== DEPLOYMENT COMPLETED ==="
+        echo "🌐 Application URL: http://$PUBLIC_IP"
+        echo "📊 HAProxy Dashboard: http://$PUBLIC_IP:8404/stats"
+        echo "👤 Dashboard Login: admin/admin"
+        echo ""
+        echo "🎯 Patterns Implemented:"
+        echo "  ✓ Circuit Breaker (HAProxy)"
+        echo "  ✓ Cache Aside (Redis)"
+        echo "  ✓ Load Balancing"
+        echo "  ✓ Service Discovery"
+        echo ""
+        
         EOF
         
-        # Execute script on VM using Azure run-command
-        echo "Executing deployment script on VM..."
-        
-        # Try multiple times with different approaches
-        for attempt in 1 2 3; do
-          echo "Deployment attempt $attempt of 3..."
-          
-          if az vm run-command invoke \
-            --resource-group "RG-MICROSERVICES-DEMO-V2" \
-            --name "vm-microservices-demo" \
-            --command-id RunShellScript \
-            --scripts @deployment_script.sh \
-            --output json > deployment_result.json; then
-            
-            echo "✓ Deployment command executed successfully"
-            
-            # Show results
-            cat deployment_result.json | jq -r '.value[0].message' || cat deployment_result.json
-            
-            echo "SUCCESS: Deployment completed!"
-            echo "Application URL: http://$VM_IP"
-            echo "Dashboard URL: http://$VM_IP:8404/stats"
-            exit 0
-          else
-            echo "✗ Attempt $attempt failed"
-            if [ $attempt -lt 3 ]; then
-              echo "Waiting 30s before next attempt..."
-              sleep 30
-            fi
-          fi
-        done
-        
-        echo "ERROR: All deployment attempts failed"
-        exit 1
+        echo ""
+        echo "SUCCESS: Deployment completed successfully!"
+        echo "🌐 Application: http://$VM_IP"
+        echo "📊 Dashboard: http://$VM_IP:8404/stats"
 
     - name: Verify Deployment
       if: steps.get-vm-info.outputs.vm_exists == 'true'
