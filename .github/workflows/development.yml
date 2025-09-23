@@ -1,4 +1,4 @@
-name: 🚀 Development Pipeline
+name: Development Pipeline
 
 on:
   workflow_dispatch:
@@ -11,6 +11,10 @@ on:
         options:
         - deploy
         - test-only
+  push:
+    branches: [ feature/infrastructure-setup ]
+  pull_request:
+    branches: [ feature/infrastructure-setup ]
 
 env:
   REGISTRY: ghcr.io
@@ -21,15 +25,15 @@ jobs:
   # TESTS COMPLETOS
   # ============================================
   test:
-    name: 🧪 Run Tests
+    name: Run Tests
     runs-on: ubuntu-latest
     if: always()
 
     steps:
-    - name: 📥 Checkout Code
+    - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: 🔧 Setup Node.js 16 (compatible with Vue 2)
+    - name: Setup Node.js 16 (compatible with Vue 2)
       uses: actions/setup-node@v4
       with:
         node-version: '16'
@@ -38,341 +42,341 @@ jobs:
           frontend/package.json
           todos-api/package.json
 
-    - name: 🔧 Setup Java
+    - name: Setup Java
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: 🔧 Setup Go
+    - name: Setup Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.19'
 
-    - name: 🔧 Setup Python
+    - name: Setup Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
 
     # Frontend Tests
-    - name: 🎨 Test Frontend
+    - name: Test Frontend
       working-directory: ./frontend
       run: |
-        echo "🎨 Validating Frontend structure..."
-        [ -f "package.json" ] && echo "✅ package.json exists"
-        [ -f "index.html" ] && echo "✅ index.html exists"
-        [ -d "src" ] && echo "✅ src directory exists"
-        [ -f "src/main.js" ] && echo "✅ main.js exists"
-        echo "✅ Frontend structure validated"
+        echo "Validating Frontend structure..."
+        [ -f "package.json" ] && echo "✓ package.json exists"
+        [ -f "index.html" ] && echo "✓ index.html exists"
+        [ -d "src" ] && echo "✓ src directory exists"
+        [ -f "src/main.js" ] && echo "✓ main.js exists"
+        echo "✓ Frontend structure validated"
 
     # TODOs API Tests  
-    - name: 📝 Test TODOs API
+    - name: Test TODOs API
       working-directory: ./todos-api
       run: |
-        echo "📝 Validating TODOs API structure..."
-        [ -f "package.json" ] && echo "✅ package.json exists"
-        [ -f "server.js" ] && echo "✅ server.js exists"
-        [ -f "routes.js" ] && echo "✅ routes.js exists"
-        [ -f "todoController.js" ] && echo "✅ todoController.js exists"
-        echo "✅ TODOs API structure validated"
+        echo "Validating TODOs API structure..."
+        [ -f "package.json" ] && echo "✓ package.json exists"
+        [ -f "server.js" ] && echo "✓ server.js exists"
+        [ -f "routes.js" ] && echo "✓ routes.js exists"
+        [ -f "todoController.js" ] && echo "✓ todoController.js exists"
+        echo "✓ TODOs API structure validated"
 
     # Users API Tests (Java)
-    - name: 👥 Test Users API
+    - name: Test Users API
       working-directory: ./users-api
       run: |
-        echo "👥 Validating Users API structure..."
-        [ -f "pom.xml" ] && echo "✅ pom.xml exists"
-        [ -f "src/main/java/com/elgris/usersapi/UsersApiApplication.java" ] && echo "✅ Main class exists"
-        echo "✅ Users API structure validated"
+        echo "Validating Users API structure..."
+        [ -f "pom.xml" ] && echo "✓ pom.xml exists"
+        [ -f "src/main/java/com/elgris/usersapi/UsersApiApplication.java" ] && echo "✓ Main class exists"
+        echo "✓ Users API structure validated"
 
     # Auth API Tests (Go)
-    - name: 🔐 Test Auth API
+    - name: Test Auth API
       working-directory: ./auth-api
       run: |
-        echo "🔐 Validating Auth API structure..."
-        [ -f "main.go" ] && echo "✅ main.go exists"
-        [ -f "user.go" ] && echo "✅ user.go exists"
-        echo "✅ Auth API structure validated"
+        echo "Validating Auth API structure..."
+        [ -f "main.go" ] && echo "✓ main.go exists"
+        [ -f "user.go" ] && echo "✓ user.go exists"
+        echo "✓ Auth API structure validated"
 
     # Log Processor Tests (Python)
-    - name: 📊 Test Log Processor
+    - name: Test Log Processor
       working-directory: ./log-message-processor
       run: |
-        echo "📊 Validating Log Processor structure..."
-        [ -f "main.py" ] && echo "✅ main.py exists"
-        [ -f "requirements.txt" ] && echo "✅ requirements.txt exists"
-        echo "✅ Log Processor structure validated"
+        echo "Validating Log Processor structure..."
+        [ -f "main.py" ] && echo "✓ main.py exists"
+        [ -f "requirements.txt" ] && echo "✓ requirements.txt exists"
+        echo "✓ Log Processor structure validated"
 
     # Docker Compose Test
-    - name: 🐳 Test Docker Compose
+    - name: Test Docker Compose
       run: |
-        echo "🐳 Validating Docker Compose files..."
+        echo "Validating Docker Compose files..."
         
         if command -v docker-compose >/dev/null 2>&1; then
-          echo "✅ Using docker-compose (v1)"
+          echo "✓ Using docker-compose (v1)"
           docker-compose -f docker-compose-simple.yml build
         elif docker compose version >/dev/null 2>&1; then
-          echo "✅ Using docker compose (v2)"
+          echo "✓ Using docker compose (v2)"
           docker compose -f docker-compose-simple.yml build
         else
-          echo "📦 Installing docker-compose..."
+          echo "Installing docker-compose..."
           sudo curl -L "https://github.com/docker/compose/releases/download/v2.21.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
           docker-compose -f docker-compose-simple.yml build
         fi
         
-        echo "✅ All images built successfully"
+        echo "✓ All images built successfully"
 
     # Pattern Scripts Test
-    - name: 🎯 Test Pattern Scripts
+    - name: Test Pattern Scripts
       run: |
-        echo "🧪 Validating pattern scripts..."
-        [ -s "presentacion-final.bat" ] && echo "✅ presentacion-final.bat OK"
-        [ -s "comparacion-patrones.bat" ] && echo "✅ comparacion-patrones.bat OK" 
-        [ -s "servicios.bat" ] && echo "✅ servicios.bat OK"
-        [ -s "haproxy-simple.cfg" ] && echo "✅ haproxy-simple.cfg OK"
-        [ -s "docker-compose-simple.yml" ] && echo "✅ docker-compose-simple.yml OK"
-        echo "✅ All pattern files validated"
+        echo "Validating pattern scripts..."
+        [ -s "presentacion-final.bat" ] && echo "✓ presentacion-final.bat OK"
+        [ -s "comparacion-patrones.bat" ] && echo "✓ comparacion-patrones.bat OK" 
+        [ -s "servicios.bat" ] && echo "✓ servicios.bat OK"
+        [ -s "haproxy-simple.cfg" ] && echo "✓ haproxy-simple.cfg OK"
+        [ -s "docker-compose-simple.yml" ] && echo "✓ docker-compose-simple.yml OK"
+        echo "✓ All pattern files validated"
 
   # ============================================
   # DEPLOYMENT A AZURE VM
   # ============================================
   deploy:
-    name: 🚀 Deploy to Azure VM
+    name: Deploy to Azure VM
     runs-on: ubuntu-latest
     needs: test
     if: always() && github.event.inputs.action == 'deploy' && (needs.test.result == 'success' || needs.test.result == 'skipped')
 
     steps:
-    - name: 📥 Checkout Code
+    - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: 🔐 Azure Login
+    - name: Azure Login
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: 📊 Get VM Information
+    - name: Get VM Information
       id: get-vm-info
       run: |
-        echo "🔍 Buscando VM en Azure..."
+        echo "Searching for VM in Azure..."
         
-        # Buscar la VM por nombre en el resource group (nombres exactos de Azure)
+        # Search for VM by name in resource group
         VM_EXISTS=$(az vm show --name "vm-microservices-demo" --resource-group "RG-MICROSERVICES-DEMO-V2" --query "id" -o tsv 2>/dev/null || echo "")
         
         if [ -z "$VM_EXISTS" ]; then
-          echo "❌ VM no encontrada. Verificando nombres..."
-          echo "🔍 Listando VMs disponibles:"
+          echo "ERROR: VM not found. Checking available VMs..."
+          echo "Available VMs:"
           az vm list --query "[].{Name:name, ResourceGroup:resourceGroup}" --output table
           echo "vm_exists=false" >> $GITHUB_OUTPUT
           exit 1
         fi
         
-        # Obtener IP pública
+        # Get public IP
         VM_IP=$(az network public-ip show --name "pip-microservices-vm" --resource-group "RG-MICROSERVICES-DEMO-V2" --query "ipAddress" -o tsv)
         
         if [ -z "$VM_IP" ] || [ "$VM_IP" == "null" ]; then
-          echo "❌ No se pudo obtener la IP pública de la VM"
-          echo "🔍 Listando IPs públicas:"
+          echo "ERROR: Could not get public IP"
+          echo "Available Public IPs:"
           az network public-ip list --query "[].{Name:name, ResourceGroup:resourceGroup, IP:ipAddress}" --output table
           exit 1
         fi
         
-        echo "✅ VM encontrada con IP: $VM_IP"
+        echo "✓ VM found with IP: $VM_IP"
         echo "vm_ip=$VM_IP" >> $GITHUB_OUTPUT
         echo "application_url=http://$VM_IP" >> $GITHUB_OUTPUT
         echo "dashboard_url=http://$VM_IP:8404/stats" >> $GITHUB_OUTPUT
         echo "vm_exists=true" >> $GITHUB_OUTPUT
 
-    - name: 🚀 Deploy to VM
+    - name: Deploy to VM
       if: steps.get-vm-info.outputs.vm_exists == 'true'
       run: |
-        echo "🚀 Desplegando aplicación en la VM..."
+        echo "Deploying application to VM..."
         
         VM_IP="${{ steps.get-vm-info.outputs.vm_ip }}"
-        echo "🌐 VM IP: $VM_IP"
+        echo "VM IP: $VM_IP"
         
-        # Configurar SSH sin interacción
-        echo "🔑 Configurando SSH..."
+        # Configure SSH
+        echo "Configuring SSH..."
         mkdir -p ~/.ssh
         chmod 700 ~/.ssh
         
-        # Instalar sshpass para usar contraseña
+        # Install sshpass
         sudo apt-get update -qq
         sudo apt-get install -y sshpass
         
-        # Función para ejecutar comandos SSH con retry
+        # SSH execution function with retry
         execute_ssh() {
           local max_attempts=3
           local attempt=1
           local delay=15
           
           while [ $attempt -le $max_attempts ]; do
-            echo "🔄 Intento $attempt de $max_attempts..."
+            echo "Attempt $attempt of $max_attempts..."
             
             if sshpass -p 'DevOps123!' ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 azureuser@$VM_IP "$1"; then
-              echo "✅ Comando ejecutado exitosamente"
+              echo "✓ Command executed successfully"
               return 0
             else
-              echo "❌ Intento $attempt falló"
+              echo "✗ Attempt $attempt failed"
               if [ $attempt -lt $max_attempts ]; then
-                echo "⏳ Esperando ${delay}s antes del siguiente intento..."
+                echo "Waiting ${delay}s before next attempt..."
                 sleep $delay
               fi
               attempt=$((attempt + 1))
             fi
           done
           
-          echo "❌ Todos los intentos SSH fallaron"
+          echo "ERROR: All SSH attempts failed"
           return 1
         }
         
-        echo "📦 Ejecutando deployment..."
+        echo "Executing deployment..."
         
-        # Script de deployment remoto
+        # Remote deployment script
         DEPLOY_SCRIPT='
         set -e
-        echo "🏠 Iniciando deployment en la VM..."
+        echo "Starting deployment on VM..."
         
-        # Navegar al directorio home
+        # Navigate to home directory
         cd /home/azureuser
         
-        # Actualizar sistema básico
-        echo "📦 Actualizando sistema..."
+        # Update system
+        echo "Updating system..."
         sudo apt-get update -qq
         
-        # Instalar Git si no está
+        # Install Git if not present
         if ! command -v git &> /dev/null; then
-          echo "📥 Instalando Git..."
+          echo "Installing Git..."
           sudo apt-get install -y git
         fi
         
-        # Clonar o actualizar repositorio
-        echo "📁 Preparando código..."
+        # Clone or update repository
+        echo "Preparing code..."
         if [ -d "microservice-app-example" ]; then
           cd microservice-app-example
-          echo "🔄 Actualizando repositorio existente..."
-          git fetch origin || echo "⚠️  Fetch falló, continuando..."
+          echo "Updating existing repository..."
+          git fetch origin || echo "WARNING: Fetch failed, continuing..."
           git reset --hard origin/feature/infrastructure-setup || git reset --hard HEAD
         else
-          echo "📥 Clonando repositorio..."
+          echo "Cloning repository..."
           git clone -b feature/infrastructure-setup https://github.com/JuanJojoa7/microservice-app-example.git || {
-            echo "❌ Error clonando repositorio"
+            echo "ERROR: Failed to clone repository"
             exit 1
           }
           cd microservice-app-example
         fi
         
-        # Verificar que tenemos el archivo docker-compose
+        # Verify docker-compose file exists
         if [ ! -f "docker-compose-simple.yml" ]; then
-          echo "❌ docker-compose-simple.yml no encontrado"
+          echo "ERROR: docker-compose-simple.yml not found"
           ls -la
           exit 1
         fi
         
-        echo "📋 Archivos disponibles:"
-        ls -la *.yml *.yaml 2>/dev/null || echo "No hay archivos YAML"
+        echo "Available files:"
+        ls -la *.yml *.yaml 2>/dev/null || echo "No YAML files found"
         
-        # Asegurar que Docker esté funcionando
-        echo "🐳 Verificando Docker..."
+        # Ensure Docker is running
+        echo "Verifying Docker..."
         sudo systemctl start docker
         sudo systemctl enable docker
         
-        # Limpiar contenedores anteriores
-        echo "🧹 Limpiando deployment anterior..."
-        sudo docker-compose -f docker-compose-simple.yml down --remove-orphans 2>/dev/null || echo "No hay contenedores previos"
+        # Clean previous deployment
+        echo "Cleaning previous deployment..."
+        sudo docker-compose -f docker-compose-simple.yml down --remove-orphans 2>/dev/null || echo "No previous containers"
         
-        # Descargar imágenes
-        echo "📥 Descargando imágenes Docker..."
-        sudo docker-compose -f docker-compose-simple.yml pull || echo "⚠️  Pull falló, continuando con build"
+        # Download images
+        echo "Downloading Docker images..."
+        sudo docker-compose -f docker-compose-simple.yml pull || echo "WARNING: Pull failed, continuing with build"
         
-        # Construir e iniciar
-        echo "🚀 Iniciando aplicación..."
+        # Build and start
+        echo "Starting application..."
         sudo docker-compose -f docker-compose-simple.yml up -d --build
         
-        # Esperar y verificar
-        echo "⏳ Esperando inicialización (60s)..."
+        # Wait and verify
+        echo "Waiting for initialization (60s)..."
         sleep 60
         
-        echo "📊 Estado final de contenedores:"
+        echo "Final container status:"
         sudo docker ps
         
-        echo "🌐 URLs de acceso:"
+        echo "Access URLs:"
         PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "IP_NOT_FOUND")
-        echo "• Aplicación: http://$PUBLIC_IP"
+        echo "• Application: http://$PUBLIC_IP"
         echo "• Dashboard: http://$PUBLIC_IP:8404/stats"
         
-        echo "✅ Deployment completado exitosamente"
+        echo "✓ Deployment completed successfully"
         '
         
-        # Ejecutar el script de deployment
+        # Execute deployment script
         if execute_ssh "$DEPLOY_SCRIPT"; then
-          echo "🎉 ¡Deployment exitoso!"
-          echo "🌐 Aplicación disponible en: http://$VM_IP"
-          echo "📊 Dashboard HAProxy: http://$VM_IP:8404/stats"
+          echo "SUCCESS: Deployment completed!"
+          echo "Application URL: http://$VM_IP"
+          echo "Dashboard URL: http://$VM_IP:8404/stats"
         else
-          echo "❌ Deployment falló después de varios intentos"
+          echo "ERROR: Deployment failed after multiple attempts"
           exit 1
         fi
 
-    - name: ✅ Verify Deployment
+    - name: Verify Deployment
       if: steps.get-vm-info.outputs.vm_exists == 'true'
       run: |
         VM_IP="${{ steps.get-vm-info.outputs.vm_ip }}"
         
-        echo "🔍 Verificando despliegue..."
+        echo "Verifying deployment..."
         sleep 15
         
-        # Verificar que la aplicación responde
-        echo "🌐 Probando conexión a la aplicación..."
+        # Test application
+        echo "Testing application connection..."
         if curl -f -s -o /dev/null http://$VM_IP; then
-          echo "✅ Aplicación accesible en: http://$VM_IP"
+          echo "✓ Application accessible at: http://$VM_IP"
         else
-          echo "⚠️  Aplicación no responde inmediatamente (normal en primer deployment)"
+          echo "WARNING: Application not responding immediately (normal for first deployment)"
         fi
         
-        # Verificar dashboard HAProxy
-        echo "📊 Probando dashboard HAProxy..."
+        # Test HAProxy dashboard
+        echo "Testing HAProxy dashboard..."
         if curl -f -s -o /dev/null http://$VM_IP:8404/stats; then
-          echo "✅ Dashboard accesible en: http://$VM_IP:8404/stats"
+          echo "✓ Dashboard accessible at: http://$VM_IP:8404/stats"
         else
-          echo "⚠️  Dashboard no responde (puede estar inicializando)"
+          echo "WARNING: Dashboard not responding (may be initializing)"
         fi
 
   # ============================================
-  # REPORTE FINAL
+  # FINAL REPORT
   # ============================================
   report:
-    name: 📊 Final Report
+    name: Final Report
     runs-on: ubuntu-latest
     needs: [test, deploy]
     if: always()
 
     steps:
-    - name: 📋 Generate Report
+    - name: Generate Report
       run: |
-        echo "# 🎯 DEPLOYMENT PIPELINE REPORT"
+        echo "# DEPLOYMENT PIPELINE REPORT"
         echo ""
-        echo "## 📊 RESULTADOS:"
-        echo "🧪 Tests: ${{ needs.test.result }}"
-        echo "🚀 Deploy: ${{ needs.deploy.result }}"
+        echo "## RESULTS:"
+        echo "Tests: ${{ needs.test.result }}"
+        echo "Deploy: ${{ needs.deploy.result }}"
         echo ""
         if [ "${{ needs.deploy.result }}" == "success" ]; then
-          echo "## 🌐 ACCESO A LA APLICACIÓN:"
-          echo "• **Aplicación Principal**: http://52.167.206.251"
-          echo "• **Dashboard HAProxy**: http://52.167.206.251:8404/stats"
-          echo "• **Usuario Dashboard**: admin/admin"
+          echo "## APPLICATION ACCESS:"
+          echo "• Main Application: http://52.167.206.251"
+          echo "• HAProxy Dashboard: http://52.167.206.251:8404/stats"
+          echo "• Dashboard User: admin/admin"
           echo ""
-          echo "## 🎯 PATRONES IMPLEMENTADOS:"
-          echo "✅ **Circuit Breaker**: HAProxy maneja fallos automáticamente"
-          echo "✅ **Cache Aside**: Redis optimiza performance"
-          echo "✅ **Load Balancing**: Distribución de carga"
-          echo "✅ **Service Discovery**: Configuración automática"
+          echo "## IMPLEMENTED PATTERNS:"
+          echo "✓ Circuit Breaker: HAProxy handles failures automatically"
+          echo "✓ Cache Aside: Redis optimizes performance"
+          echo "✓ Load Balancing: Load distribution"
+          echo "✓ Service Discovery: Automatic configuration"
           echo ""
-          echo "## 💰 COSTO ESTIMADO:"
-          echo "• VM Standard_B1s: ~$7-10 USD/mes"
-          echo "• Total infraestructura: ~$10 USD/mes"
+          echo "## ESTIMATED COST:"
+          echo "• VM Standard_B1s: ~$7-10 USD/month"
+          echo "• Total infrastructure: ~$10 USD/month"
         fi
         echo ""
-        echo "## 🎓 DEMO LOCAL:"
-        echo "Para comparar patrones, ejecuta: \`presentacion-final.bat\`"
+        echo "## LOCAL DEMO:"
+        echo "To compare patterns, run: presentacion-final.bat"
