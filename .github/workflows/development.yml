@@ -281,20 +281,24 @@ jobs:
       run: |
         echo "🔍 Buscando VM en Azure..."
         
-        # Buscar la VM por nombre en el resource group
-        VM_EXISTS=$(az vm show --name "vm-microservices" --resource-group "rg-microservices-demo-v2" --query "id" -o tsv 2>/dev/null || echo "")
+        # Buscar la VM por nombre en el resource group (nombres exactos de Azure)
+        VM_EXISTS=$(az vm show --name "vm-microservices-demo" --resource-group "RG-MICROSERVICES-DEMO-V2" --query "id" -o tsv 2>/dev/null || echo "")
         
         if [ -z "$VM_EXISTS" ]; then
-          echo "❌ VM no encontrada. Ejecuta el pipeline de infraestructura primero."
+          echo "❌ VM no encontrada. Verificando nombres..."
+          echo "🔍 Listando VMs disponibles:"
+          az vm list --query "[].{Name:name, ResourceGroup:resourceGroup}" --output table
           echo "vm_exists=false" >> $GITHUB_OUTPUT
           exit 1
         fi
         
         # Obtener IP pública
-        VM_IP=$(az network public-ip show --name "pip-microservices-vm" --resource-group "rg-microservices-demo-v2" --query "ipAddress" -o tsv)
+        VM_IP=$(az network public-ip show --name "pip-microservices-vm" --resource-group "RG-MICROSERVICES-DEMO-V2" --query "ipAddress" -o tsv)
         
         if [ -z "$VM_IP" ] || [ "$VM_IP" == "null" ]; then
           echo "❌ No se pudo obtener la IP pública de la VM"
+          echo "🔍 Listando IPs públicas:"
+          az network public-ip list --query "[].{Name:name, ResourceGroup:resourceGroup, IP:ipAddress}" --output table
           exit 1
         fi
         
