@@ -84,7 +84,7 @@ resource "azurerm_public_ip" "main" {
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   allocation_method   = "Static"
-  sku                 = "Basic" # Más barato que Standard
+  sku                 = "Standard" # Azure for Students solo permite Standard SKU
 
   tags = azurerm_resource_group.main.tags
 }
