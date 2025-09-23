@@ -31,6 +31,8 @@ on:
       - 'docker-compose-simple.yml'
       - 'haproxy-simple.cfg'
       - '*.bat'
+      - '.github/workflows/**'
+      - 'README.md'
   
   pull_request:
     paths:
@@ -41,6 +43,8 @@ on:
       - 'log-message-processor/**'
       - 'docker-compose-simple.yml'
       - 'haproxy-simple.cfg'
+      - '.github/workflows/**'
+      - 'README.md'
 
 env:
   REGISTRY: ghcr.io
