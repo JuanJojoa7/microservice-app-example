@@ -4,7 +4,7 @@
 
 # Configuración del grupo de recursos
 resource_group_name = "rg-microservices-demo"
-location            = "East US 2" # Región permitida para Azure for Students
+location            = "eastus2" # Región permitida para Azure for Students
 
 # Configuración de la VM (MÁS BARATA)
 vm_size = "Standard_B1s" # 1 vCPU, 1 GB RAM - ~$7-10/mes

@@ -24,9 +24,9 @@ variable "resource_group_name" {
 }
 
 variable "location" {
-  description = "Región de Azure (permitida: East US 2)"
+  description = "Región de Azure (permitida: eastus2)"
   type        = string
-  default     = "East US 2"
+  default     = "eastus2"
 }
 
 variable "vm_size" {
@@ -331,5 +331,5 @@ output "dashboard_url" {
 
 output "vm_cost_estimate" {
   description = "Estimación de costo mensual USD (aproximado)"
-  value       = "~$7-10 USD/mes (Standard_B1s en East US 2)"
+  value       = "~$7-10 USD/mes (Standard_B1s en eastus2)"
 }
