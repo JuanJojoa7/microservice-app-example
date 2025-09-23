@@ -213,7 +213,10 @@ jobs:
   terraform-destroy:
     name: 💥 Destroy Infrastructure
     runs-on: ubuntu-latest
-    if: github.event.inputs.action == 'destroy'
+    if: >
+      github.event.inputs.action == 'destroy' ||
+      (github.event_name == 'push' && 
+       contains(github.event.head_commit.message, '[DESTROY]'))
     
     environment: 
       name: azure-production

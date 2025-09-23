@@ -1,0 +1,9 @@
+# Trigger Destroy Infrastructure
+# This file triggers the destroy action when committed
+# 
+# To destroy infrastructure:
+# 1. Delete this file: rm terraform/DESTROY_TRIGGER
+# 2. Commit and push
+#
+# Current time: 2025-09-23
+DESTROY_INFRASTRUCTURE=true
