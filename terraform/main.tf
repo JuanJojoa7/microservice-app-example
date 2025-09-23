@@ -209,18 +209,17 @@ resource "azurerm_linux_virtual_machine" "main" {
   tags = azurerm_resource_group.main.tags
 }
 
-# Script de inicialización
+# Script de inicialización SIMPLE - Solo SSH
 locals {
   cloud_init_script = <<-EOF
 #!/bin/bash
 
 # Log de instalación
 exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
-echo "Iniciando configuración de VM para microservicios..."
+echo "Iniciando configuración SIMPLE de VM..."
 
-# Actualizar sistema
+# Solo actualizar paquetes críticos
 apt-get update -y
-apt-get upgrade -y
 
 # Configurar SSH para password authentication
 sed -i 's/#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
@@ -228,89 +227,10 @@ sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_c
 systemctl enable ssh
 systemctl restart ssh
 
-# Instalar dependencias básicas
-apt-get install -y \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release \
-    git \
-    unzip
+# Instalar solo git y curl (lo básico)
+apt-get install -y git curl
 
-# Instalar Docker
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-apt-get update -y
-apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-# Configurar Docker
-systemctl start docker
-systemctl enable docker
-usermod -aG docker ${var.admin_username}
-
-# Instalar Docker Compose standalone
-curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-chmod +x /usr/local/bin/docker-compose
-
-# Crear directorio para la aplicación
-mkdir -p /home/${var.admin_username}/microservices-app
-chown ${var.admin_username}:${var.admin_username} /home/${var.admin_username}/microservices-app
-
-# Crear script de despliegue automático
-cat > /home/${var.admin_username}/deploy-app.sh << 'DEPLOY_SCRIPT'
-#!/bin/bash
-set -e
-
-echo "🚀 Desplegando aplicación de microservicios..."
-
-# Ir al directorio de la app
-cd /home/${var.admin_username}/microservices-app
-
-# Si existe repositorio, actualizarlo; si no, clonarlo
-if [ -d ".git" ]; then
-    echo "📦 Actualizando repositorio..."
-    git pull origin feature/infrastructure-setup
-else
-    echo "📦 Clonando repositorio..."
-    git clone https://github.com/JuanJojoa7/microservice-app-example.git .
-    git checkout feature/infrastructure-setup
-fi
-
-# Dar permisos a los scripts
-chmod +x *.bat 2>/dev/null || true
-
-# Parar contenedores existentes
-docker-compose -f docker-compose-simple.yml down 2>/dev/null || true
-
-# Limpiar imágenes antiguas para ahorrar espacio
-docker system prune -f
-
-# Construir e iniciar aplicación
-docker-compose -f docker-compose-simple.yml up -d --build
-
-# Esperar a que se inicialicen
-sleep 30
-
-# Verificar estado
-docker ps
-
-echo "✅ Aplicación desplegada en:"
-echo "🌐 Aplicación: http://$(curl -s ifconfig.me)"
-echo "📊 Dashboard: http://$(curl -s ifconfig.me):8404/stats"
-echo "👤 Usuario: admin / Contraseña: admin"
-
-DEPLOY_SCRIPT
-
-# Hacer ejecutable el script
-chmod +x /home/${var.admin_username}/deploy-app.sh
-chown ${var.admin_username}:${var.admin_username} /home/${var.admin_username}/deploy-app.sh
-
-# Ejecutar despliegue inicial
-su - ${var.admin_username} -c '/home/${var.admin_username}/deploy-app.sh'
-
-echo "✅ VM configurada y aplicación desplegada"
+echo "✅ Configuración simple completada - SSH habilitado"
 EOF
 }
 

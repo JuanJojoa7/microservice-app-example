@@ -5,7 +5,7 @@
 # Infrastructure deployed successfully - ready for app deployment
 
 # Configuración del grupo de recursos
-resource_group_name = "rg-microservices-demo-v2"
+resource_group_name = "rg-microservices-demo-v3"
 location            = "eastus2" # Región permitida para Azure for Students
 
 # Configuración de la VM (MÁS BARATA)
