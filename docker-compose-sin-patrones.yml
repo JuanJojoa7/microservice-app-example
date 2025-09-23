@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # SIN PATRONES - ACCESO DIRECTO
+  # ============================================
+
+  # Frontend - Vue.js Application (Puerto principal 80)
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sin_patrones_frontend
+    ports:
+      - "80:8080"  # Acceso directo en puerto 80
+    depends_on:
+      - auth-api
+      - todos-api
+    networks:
+      - sin_patrones
+    environment:
+      - NODE_ENV=production
+
+  # Authentication API - Go
+  auth-api:
+    build:
+      context: ./auth-api
+      dockerfile: Dockerfile
+    container_name: sin_patrones_auth
+    ports:
+      - "8000:8000"
+    depends_on:
+      - users-api
+    networks:
+      - sin_patrones
+    environment:
+      - AUTH_API_PORT=8000
+      - USERS_API_ADDRESS=http://users-api:8083
+      - JWT_SECRET=myfancysecret
+
+  # Users API - Java Spring Boot
+  users-api:
+    build:
+      context: ./users-api
+      dockerfile: Dockerfile
+    container_name: sin_patrones_users
+    ports:
+      - "8083:8083"
+    networks:
+      - sin_patrones
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - JWT_SECRET=myfancysecret
+
+  # TODOs API - Node.js
+  todos-api:
+    build:
+      context: ./todos-api
+      dockerfile: Dockerfile
+    container_name: sin_patrones_todos
+    ports:
+      - "8082:8082"
+    depends_on:
+      - redis
+    networks:
+      - sin_patrones
+    environment:
+      - TODO_API_PORT=8082
+      - JWT_SECRET=myfancysecret
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+
+  # Redis básico sin cache optimizations
+  redis:
+    image: redis:7-alpine
+    container_name: sin_patrones_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - sin_patrones
+
+networks:
+  sin_patrones:
+    driver: bridge
+    name: sin_patrones_network
