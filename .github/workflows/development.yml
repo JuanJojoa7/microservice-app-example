@@ -247,8 +247,25 @@ jobs:
         
         # Ensure Docker is running
         echo "Starting Docker service..."
-        sudo systemctl start docker
+        if ! systemctl start docker 2>/dev/null; then
+          echo "Docker not installed, installing now..."
+          
+          # Install Docker (fallback if cloud-init didn't finish)
+          curl -fsSL https://get.docker.com -o get-docker.sh
+          sudo sh get-docker.sh
+          sudo systemctl start docker
+          sudo systemctl enable docker
+          sudo usermod -aG docker azureuser
+          
+          # Install docker-compose
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          
+          echo "Docker installed successfully"
+        fi
+        
         sudo systemctl enable docker
+        echo "Docker service started ✓"
         
         # Stop any existing containers
         echo "Stopping existing containers..."
