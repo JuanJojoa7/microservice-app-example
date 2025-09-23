@@ -260,25 +260,12 @@ jobs:
           sudo chmod +x /usr/local/bin/docker-compose
         fi
         
-        # OPTIMIZACIÓN 2: Docker performance settings
-        echo "Configuring Docker for performance..."
-        sudo mkdir -p /etc/docker
-        cat << 'DOCKER_CONFIG' | sudo tee /etc/docker/daemon.json > /dev/null
-{
-  "max-concurrent-downloads": 2,
-  "max-concurrent-uploads": 2,
-  "storage-driver": "overlay2"
-}
-DOCKER_CONFIG
-        sudo systemctl restart docker
-        sleep 10
-        
-        # OPTIMIZACIÓN 3: Clean environment
+        # OPTIMIZACIÓN 2: Clean environment first
         echo "Cleaning Docker environment..."
         sudo docker system prune -f || true
         sudo docker-compose -f docker-compose-simple.yml down --remove-orphans || true
         
-        # OPTIMIZACIÓN 4: Sequential build strategy (not parallel)
+        # OPTIMIZACIÓN 3: Sequential build strategy (not parallel)
         echo "=== BUILDING SERVICES SEQUENTIALLY ==="
         
         # Build services one by one to avoid resource exhaustion
@@ -325,7 +312,7 @@ DOCKER_CONFIG
           fi
         done
         
-        # OPTIMIZACIÓN 5: Health check and recovery
+        # OPTIMIZACIÓN 4: Health check and recovery
         echo "=== FINAL HEALTH CHECK ==="
         sleep 60
         
