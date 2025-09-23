@@ -190,7 +190,7 @@ jobs:
 
     - name: Deploy to VM
       if: steps.get-vm-info.outputs.vm_exists == 'true'
-      timeout-minutes: 15
+      timeout-minutes: 10
       run: |
         echo "Deploying application to VM..."
         
@@ -246,26 +246,40 @@ jobs:
         echo "Found docker-compose-simple.yml ✓"
         
         # Ensure Docker is running
-        echo "Starting Docker service..."
-        if ! systemctl start docker 2>/dev/null; then
-          echo "Docker not installed, installing now..."
+        echo "Checking Docker installation..."
+        
+        # Try to start Docker first
+        if sudo systemctl start docker 2>/dev/null && sudo systemctl enable docker 2>/dev/null; then
+          echo "Docker service started successfully ✓"
+        else
+          echo "Docker service not available, checking installation..."
           
-          # Install Docker (fallback if cloud-init didn't finish)
-          curl -fsSL https://get.docker.com -o get-docker.sh
-          sudo sh get-docker.sh
-          sudo systemctl start docker
-          sudo systemctl enable docker
-          sudo usermod -aG docker azureuser
-          
-          # Install docker-compose
-          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          
-          echo "Docker installed successfully"
+          # Check if docker command exists
+          if command -v docker &> /dev/null; then
+            echo "Docker command exists, fixing service..."
+            sudo systemctl daemon-reload
+            sudo systemctl enable docker
+            sudo systemctl start docker
+          else
+            echo "Installing Docker from scratch..."
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo systemctl start docker
+            sudo systemctl enable docker
+          fi
         fi
         
-        sudo systemctl enable docker
-        echo "Docker service started ✓"
+        # Ensure user is in docker group
+        sudo usermod -aG docker azureuser
+        
+        # Verify docker-compose
+        if ! command -v docker-compose &> /dev/null; then
+          echo "Installing docker-compose..."
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+        fi
+        
+        echo "Docker setup completed ✓"
         
         # Stop any existing containers
         echo "Stopping existing containers..."
