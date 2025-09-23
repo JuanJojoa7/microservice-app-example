@@ -271,34 +271,38 @@ jobs:
     - name: 📥 Checkout Code
       uses: actions/checkout@v4
 
-    - name: 🔧 Setup Terraform (to get VM info)
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: '1.5.0'
-
-    - name: 🔐 Azure Login
+    - name:  Azure Login
       uses: azure/login@v1
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: 📊 Get VM Information
       id: get-vm-info
-      working-directory: ./terraform
       run: |
-        terraform init
+        echo "🔍 Buscando VM en Azure..."
         
-        # Intentar obtener outputs (VM debe existir)
-        if terraform output public_ip_address > /dev/null 2>&1; then
-          VM_IP=$(terraform output -raw public_ip_address)
-          echo "vm_ip=$VM_IP" >> $GITHUB_OUTPUT
-          echo "application_url=http://$VM_IP" >> $GITHUB_OUTPUT
-          echo "dashboard_url=http://$VM_IP:8404/stats" >> $GITHUB_OUTPUT
-          echo "vm_exists=true" >> $GITHUB_OUTPUT
-        else
+        # Buscar la VM por nombre en el resource group
+        VM_EXISTS=$(az vm show --name "vm-microservices" --resource-group "rg-microservices-demo-v2" --query "id" -o tsv 2>/dev/null || echo "")
+        
+        if [ -z "$VM_EXISTS" ]; then
+          echo "❌ VM no encontrada. Ejecuta el pipeline de infraestructura primero."
           echo "vm_exists=false" >> $GITHUB_OUTPUT
-          echo "⚠️ VM no encontrada. Ejecuta el pipeline de infraestructura primero."
           exit 1
         fi
+        
+        # Obtener IP pública
+        VM_IP=$(az network public-ip show --name "pip-microservices-vm" --resource-group "rg-microservices-demo-v2" --query "ipAddress" -o tsv)
+        
+        if [ -z "$VM_IP" ] || [ "$VM_IP" == "null" ]; then
+          echo "❌ No se pudo obtener la IP pública de la VM"
+          exit 1
+        fi
+        
+        echo "✅ VM encontrada con IP: $VM_IP"
+        echo "vm_ip=$VM_IP" >> $GITHUB_OUTPUT
+        echo "application_url=http://$VM_IP" >> $GITHUB_OUTPUT
+        echo "dashboard_url=http://$VM_IP:8404/stats" >> $GITHUB_OUTPUT
+        echo "vm_exists=true" >> $GITHUB_OUTPUT
 
     - name: 📥 Download Deployment Artifacts
       uses: actions/download-artifact@v4
