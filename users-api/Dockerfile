@@ -1,5 +1,5 @@
-# Stage 1: Build the application
-FROM maven:3.8.5-openjdk-11 AS builder
+# Stage 1: Build the application - OPTIMIZED for faster builds
+FROM maven:3.8-openjdk-11-slim AS builder
 
 WORKDIR /app
 

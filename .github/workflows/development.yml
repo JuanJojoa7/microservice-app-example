@@ -190,7 +190,7 @@ jobs:
 
     - name: Deploy to VM
       if: steps.get-vm-info.outputs.vm_exists == 'true'
-      timeout-minutes: 10
+      timeout-minutes: 20  # Aumentamos timeout para compilación inicial
       run: |
         echo "Deploying application to VM..."
         
