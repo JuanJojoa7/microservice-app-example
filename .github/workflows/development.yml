@@ -145,7 +145,7 @@ jobs:
     name: Deploy to Azure VM
     runs-on: ubuntu-latest
     needs: test
-    if: always() && (github.event.inputs.action == 'deploy' || github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    if: always() && needs.test.result != 'failure'
 
     steps:
     - name: Checkout Code
@@ -528,28 +528,44 @@ jobs:
     steps:
     - name: Generate Report
       run: |
-        echo "# DEPLOYMENT PIPELINE REPORT"
+        echo "# 🎯 DEPLOYMENT PIPELINE REPORT"
         echo ""
-        echo "## RESULTS:"
-        echo "Tests: ${{ needs.test.result }}"
-        echo "Deploy: ${{ needs.deploy.result }}"
+        echo "## 📊 RESULTS:"
+        echo "- Tests: ${{ needs.test.result }}"
+        echo "- Deploy: ${{ needs.deploy.result }}"
         echo ""
         if [ "${{ needs.deploy.result }}" == "success" ]; then
-          echo "## APPLICATION ACCESS:"
-          echo "• Main Application: http://52.167.206.251"
-          echo "• HAProxy Dashboard: http://52.167.206.251:8404/stats"
-          echo "• Dashboard User: admin/admin"
+          echo "## 🌐 APPLICATION ACCESS:"
+          echo "- Main Application: http://\$VM_IP (check deploy logs for actual IP)"
+          echo "- HAProxy Dashboard: http://\$VM_IP:8404/stats"
+          echo "- Dashboard Credentials: admin/admin"
           echo ""
-          echo "## IMPLEMENTED PATTERNS:"
-          echo "✓ Circuit Breaker: HAProxy handles failures automatically"
-          echo "✓ Cache Aside: Redis optimizes performance"
-          echo "✓ Load Balancing: Load distribution"
-          echo "✓ Service Discovery: Automatic configuration"
+          echo "## ✅ IMPLEMENTED PATTERNS:"
+          echo "✓ Circuit Breaker: HAProxy handles service failures automatically"
+          echo "✓ Cache Aside: Redis optimizes database access performance"
+          echo "✓ Load Balancing: HAProxy distributes traffic efficiently"
+          echo "✓ Service Discovery: Docker Compose provides automatic configuration"
           echo ""
-          echo "## ESTIMATED COST:"
-          echo "• VM Standard_B1s: ~$7-10 USD/month"
-          echo "• Total infrastructure: ~$10 USD/month"
+          echo "## 💰 INFRASTRUCTURE COST:"
+          echo "- VM Standard_B2s: ~$15-20 USD/month (2 vCPUs, 4GB RAM)"
+          echo "- Storage: ~$2-3 USD/month"
+          echo "- Networking: ~$1-2 USD/month"
+          echo "- **Total: ~$18-25 USD/month**"
+          echo ""
+          echo "## 🎯 PERFORMANCE BENEFITS:"
+          echo "- Standard_B2s provides stable Docker builds"
+          echo "- No VM corruption issues"
+          echo "- Faster compilation times"
+          echo "- Reliable SSH connectivity"
+        else
+          echo "## ❌ DEPLOYMENT FAILED"
+          echo "Check the deploy job logs for details."
+          echo "Common solutions:"
+          echo "1. Run Infrastructure Pipeline with 'clean-deploy'"
+          echo "2. Verify VM is running and accessible"
+          echo "3. Check SSH connectivity"
         fi
         echo ""
-        echo "## LOCAL DEMO:"
+        echo "## 🔧 LOCAL DEMO:"
+        echo "To test patterns locally, run: docker-compose -f docker-compose-simple.yml up"
         echo "To compare patterns, run: presentacion-final.bat"
