@@ -2,6 +2,7 @@
 # VARIABLES DE TERRAFORM - PERSONALIZACIÓN
 # ============================================
 # Trigger pipeline - clean rebuild
+# Infrastructure deployed successfully - ready for app deployment
 
 # Configuración del grupo de recursos
 resource_group_name = "rg-microservices-demo-v2"
