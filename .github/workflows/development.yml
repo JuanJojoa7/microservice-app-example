@@ -162,7 +162,7 @@ jobs:
         echo "Searching for VM in Azure..."
         
         # Search for VM by name in resource group
-        VM_EXISTS=$(az vm show --name "vm-microservices-demo" --resource-group "RG-MICROSERVICES-DEMO-V2" --query "id" -o tsv 2>/dev/null || echo "")
+        VM_EXISTS=$(az vm show --name "vm-microservices-demo" --resource-group "RG-MICROSERVICES-DEMO-V3" --query "id" -o tsv 2>/dev/null || echo "")
         
         if [ -z "$VM_EXISTS" ]; then
           echo "ERROR: VM not found. Checking available VMs..."
@@ -173,7 +173,7 @@ jobs:
         fi
         
         # Get public IP
-        VM_IP=$(az network public-ip show --name "pip-microservices-vm" --resource-group "RG-MICROSERVICES-DEMO-V2" --query "ipAddress" -o tsv)
+        VM_IP=$(az network public-ip show --name "pip-microservices-vm" --resource-group "RG-MICROSERVICES-DEMO-V3" --query "ipAddress" -o tsv)
         
         if [ -z "$VM_IP" ] || [ "$VM_IP" == "null" ]; then
           echo "ERROR: Could not get public IP"
