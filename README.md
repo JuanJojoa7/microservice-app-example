@@ -200,14 +200,14 @@ microservice-app-example/
 
 **Need help?** Check the Actions logs or create an issue in this repository.
 
-## New Architecture
+## Old Architecture
 
 ![microservice-app-example](/arch-img/Microservices.png)
  
  
  
 
-## Old Architecture
+## New Architecture
 
 Take a look at the components diagram that describes them and their interactions. L
 ![New Diagrama](/arch-img/Diagrama.svg) L
