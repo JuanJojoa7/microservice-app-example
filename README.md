@@ -12,6 +12,6 @@ In each folder you can find a more in-depth explanation of each component: L
 5. [Frontend](/frontend) Vue application, provides UI. L
  L
 ## Architecture
-
+ L
 Take a look at the components diagram that describes them and their interactions. L
 ![microservice-app-example](/arch-img/Microservices.png) L
