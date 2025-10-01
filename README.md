@@ -2,6 +2,8 @@
 
 Implementation of **Circuit Breaker** and **Cache Aside** patterns for a microservices architecture using Docker, Azure, and automated CI/CD pipelines.
 
+Link to slides presented in class: https://www.canva.com/design/DAGz2qMPMYM/vPvgWrEHlXm6dS8H1vb0KA/edit?utm_content=DAGz2qMPMYM&utm_campaign=designshare&utm_medium=link2&utm_source=sharebutton
+
 ## Quick Start
 
 ### 1. Prerequisites
